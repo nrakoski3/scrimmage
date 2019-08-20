@@ -109,7 +109,7 @@ SimControl::SimControl() :
     networks_(std::make_shared<std::map<std::string, NetworkPtr>>()),
     pubsub_(std::make_shared<PubSub>()),
     file_search_(std::make_shared<FileSearch>()),
-    sim_plugin_(std::make_shared<Plugin>()),
+    sim_plugin_(std::make_shared<EntityPlugin>()),
     limited_verbosity_(false) {
 
     pause(false);
@@ -1355,7 +1355,7 @@ void SimControl::worker() {
     }
 }
 
-void print_err(PluginPtr p) {
+void print_err(EntityPluginPtr p) {
     if (p->print_err_on_exit) {
         std::cout << "failed to update entity " << p->parent()->id().id()
             << ", plugin type \"" << p->type() << "\""
@@ -1393,7 +1393,7 @@ bool SimControl::run_sensors() {
 
 bool SimControl::add_tasks(Task::Type type, double t, double dt) {
     // FIXME: this will be much simpler once there is a
-    // step function in Plugin.h
+    // step function in EntityPlugin.h
     // In particular, we can get rid of Task::Type and
     // more easily do entity_interaction/network plugins in multiple threads.
 

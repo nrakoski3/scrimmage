@@ -70,10 +70,19 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
  public:
     Plugin();
     virtual ~Plugin();
-
     virtual void set_name(std::string name) { name_ = name; }
     virtual std::string name();
     virtual std::string type();
+ protected:
+    std::string name_;
+};
+using PluginPtr = std::shared_ptr<Plugin>;
+
+class EntityPlugin : public Plugin {
+ public:
+    EntityPlugin();
+    virtual ~EntityPlugin();
+
     virtual bool ready() { return true; }
 
     void close_plugin(const double &t);
@@ -104,7 +113,7 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
                                 CallbackFunc callback) {
         SubscriberBasePtr sub =
             pubsub_->subscribe<T>(network_name, topic, callback,
-                                  0, false, shared_from_this());
+                                  0, false, std::static_pointer_cast<EntityPlugin>(shared_from_this()));
         subs_.push_back(sub);
         return sub;
     }
@@ -116,7 +125,7 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
                                 unsigned int max_queue_size) {
         SubscriberBasePtr sub  =
             pubsub_->subscribe<T>(network_name, topic, callback,
-                                  max_queue_size, true, shared_from_this());
+                                  max_queue_size, true, std::static_pointer_cast<EntityPlugin>(shared_from_this()));
         subs_.push_back(sub);
         return sub;
     }
@@ -142,9 +151,9 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
     bool register_param(const std::string &name, T &variable,
                         std::function<void(const T &value)> callback =
                         [](const T &value){}) {
-        return param_server_->register_param<T>(name, variable,
-                                                callback,
-                                                shared_from_this());
+        return param_server_->register_param<T>(
+            name, variable, callback,
+            std::static_pointer_cast<EntityPlugin>(shared_from_this()));
     }
 
     template <class T>
@@ -154,7 +163,8 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
 
     template <class T>
     bool unregister_param(const std::string &name) {
-        return param_server_->unregister_param<T>(name, shared_from_this());
+        return param_server_->unregister_param<T>(
+            name, std::static_pointer_cast<EntityPlugin>(shared_from_this()));
     }
 
     // loop rate control
@@ -165,7 +175,6 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
     bool step_loop_timer(double dt);
 
  protected:
-    std::string name_;
     EntityPtr parent_;
 
     StatePtr transform_;
@@ -188,7 +197,7 @@ class Plugin : public std::enable_shared_from_this<Plugin> {
  public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+using EntityPluginPtr = std::shared_ptr<EntityPlugin>;
 
-using PluginPtr = std::shared_ptr<Plugin>;
 } // namespace scrimmage
 #endif  // INCLUDE_SCRIMMAGE_PLUGIN_MANAGER_PLUGIN_H_
