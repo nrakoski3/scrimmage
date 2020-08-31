@@ -83,6 +83,29 @@ AirSimSensor::AirSimSensor() : client_connected_(false),
     enu_to_ned_yaw_.set_output_zero_axis(ang::HeadingZero::Pos_Y);
 }
 
+
+Eigen::Isometry3f AirSimSensor::get_object_pose_from_NED_to_ENU(Eigen::Isometry3f object_pose_NED) {
+    //Get Vehicle Pose from NED to ENU
+    Eigen::Matrix<float, 3, 1> object_position_ENU;
+    object_position_ENU.x() = object_pose_NED.translation().y();
+    object_position_ENU.y() = object_pose_NED.translation().x();
+    object_position_ENU.z() = -1 * object_pose_NED.translation().z();
+    // Convert the orientation to ENU
+    Eigen::Quaternionf NED_quat_object(object_pose_NED.rotation());
+
+    // Rotate, order matters
+    double xTo = -180 * (M_PI / 180); // -PI rotation about X
+    double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
+    Eigen::Quaternion<float> object_orientation_ENU;
+    object_orientation_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat_object; // -PI rotation about X
+    object_orientation_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * object_orientation_ENU; // PI/2 rotation about Z (Up)
+    // Bring vehicle pose in relation to ENU, World into Eigen
+    Eigen::Translation3f translation_trans_object(object_position_ENU);
+    Eigen::Quaternionf rotation_quat_object(object_orientation_ENU);
+    Eigen::Isometry3f tf_object_ENU(translation_trans_object * rotation_quat_object);
+    return tf_object_ENU;
+}
+
 void AirSimSensor::parse_camera_configs(std::map<std::string, std::string> &params) {
     // Parse the camera config string.
     // The string is a list of camera configs from AirSimSensor.xml of the form:
@@ -160,6 +183,66 @@ void AirSimSensor::parse_camera_configs(std::map<std::string, std::string> &para
     } // end for loop: tokens_2 in token_1
 } // end parse_camera_configs
 
+void AirSimSensor::parse_camera_pose(std::map<std::string, std::string> &params) {
+    // Parse the camera config string.
+    // The string is a list of camera configs from AirSimSensor.xml of the form:
+    // [VehicleName=robot1 CameraName=front_center ImageTypeName=Scene Width=256 Height=144]
+    std::string camera_pose = sc::get<std::string>("camera_pose_NED", params, "");
+    std::vector<std::string> tokens_1;
+    boost::split(tokens_1, camera_pose, boost::is_any_of("[]"));
+    for (std::string &t_1 : tokens_1) {
+        if (t_1.length() > 0) {
+            std::vector<std::string> tokens_2;
+            boost::split(tokens_2, t_1, boost::is_any_of(" ,"));
+
+            if ((tokens_2.size() == 8) && (tokens_2[0] == vehicle_name_)) {
+
+                try {
+                    std::string camera_name = tokens_2[1];
+                    float x = std::stof(tokens_2[2]);
+                    float y = std::stof(tokens_2[3]);
+                    float z = std::stof(tokens_2[4]);;
+                    cout << "camera " << camera_name << " pos: x " << x << ", y " << y << ", z " << z << endl;
+
+                    // Camera pose comes in as NED so transform into ENU
+                    Eigen::Translation3f translation_trans_camera(x, y, z);
+
+                    // Convert Roll pitch yaw from degrees to Radians
+                    // Todo: This calculation from NED RPY to ENU RPY is broken, needs to be fixed before more complicated
+                    // Todo: maneuvers are performed in the simulation where data is sent to ROS
+                    float roll = std::stof(tokens_2[5]) * (M_PI / 180);
+                    float pitch = std::stof(tokens_2[6]) * (M_PI / 180);
+                    float yaw = std::stof(tokens_2[7]) * (M_PI / 180);
+                    // Get camera orientation in NED
+                    Eigen::Quaternionf rotation_quat_camera = ma::VectorMath::toQuaternion(pitch, roll, yaw);
+
+                    // Transform Camera orientation to ENU
+                    Eigen::Isometry3f pose_vehicle_camera_NED(translation_trans_camera * rotation_quat_camera);
+                    Eigen::Isometry3f pose_vehicle_camera_ENU = get_object_pose_from_NED_to_ENU(pose_vehicle_camera_NED);
+
+                    cout << "camera " << camera_name << " pos: x " << pose_vehicle_camera_ENU.translation().x() <<
+                                                        ", y " << pose_vehicle_camera_ENU.translation().y() <<
+                                                        ", z " << pose_vehicle_camera_ENU.translation().z() << endl;
+
+                    for (CameraConfig c : cam_configs_) {
+                        if (c.cam_name == camera_name) {
+                            c.pose_vehicle_camera_ENU = pose_vehicle_camera_ENU;
+
+                            cout << "camera " << camera_name << " pos: x " << c.pose_vehicle_camera_ENU.translation().x() <<
+                                 ", y " << c.pose_vehicle_camera_ENU.translation().y() <<
+                                 ", z " << c.pose_vehicle_camera_ENU.translation().z() << endl;
+                        }
+                    }
+
+                } catch (boost::bad_lexical_cast) {
+                    // Parsing whitespace and possibily malformed XML.
+                    cout << "Parse Error: Check camera_pose_NED's in AirSimSensor.xml" << endl;
+                } // end try, catch
+            }
+        } // end check token_1 size
+    } // end for loop: tokens_2 in token_1
+} // end parse_camera_pose
+
 void AirSimSensor::parse_lidar_configs(std::map<std::string, std::string> &params) {
     // Parse the lidar config string.
     // The string is a list of lidar configs from AirSimSensor.xml of the form:
@@ -172,13 +255,40 @@ void AirSimSensor::parse_lidar_configs(std::map<std::string, std::string> &param
             std::vector<std::string> tokens_2;
             boost::split(tokens_2, t_1, boost::is_any_of(" ,"));
 
-            if ((tokens_2.size() == 2) && (tokens_2[0] == vehicle_name_)) {
+            if ((tokens_2.size() == 8) && (tokens_2[0] == vehicle_name_)) {
                 try {
                     cout << "[AirSimSensor] Adding LIDAR sensor '" << tokens_2[1]
                          << "' to Vehicle '" << vehicle_name_ << "'." << endl;
-                    lidar_names_.push_back(tokens_2[1]);
+
+                    AirSimLidarType l;
+                    l.vehicle_name = vehicle_name_;
+                    l.lidar_name = tokens_2[1];
+
+                    // LIDAR pose comes in as NED so transform into ENU
+                    Eigen::Translation3f translation_trans_lidar(std::stof(tokens_2[2]),
+                                                                 std::stof(tokens_2[3]),
+                                                                 std::stof(tokens_2[4]));
+
+                    // Convert Roll pitch yaw from degrees to radians
+                    // Todo: This calculation from NED RPY to ENU RPY is broken, needs to be fixed before more complicated
+                    // Todo: maneuvers are performed in the simulation where data is sent to ROS
+                    float roll = std::stof(tokens_2[5]) * (M_PI / 180);
+                    float pitch = std::stof(tokens_2[6]) * (M_PI / 180);
+                    float yaw = std::stof(tokens_2[7]) * (M_PI / 180);
+                    // cout << "lidar rot: roll " << roll << ", pitch " << pitch << ", yaw " << yaw << endl;
+                    // Get LIDAR orientation in NED
+                    Eigen::Quaternionf rotation_quat_lidar = ma::VectorMath::toQuaternion(pitch, roll, yaw);
+
+                    // Transform LIDAR orientation to ENU
+                    Eigen::Isometry3f pose_vehicle_lidar_NED(translation_trans_lidar * rotation_quat_lidar);
+                    l.pose_vehicle_lidar_ENU = get_object_pose_from_NED_to_ENU(pose_vehicle_lidar_NED);
+
+                    // Save into vector
+                    lidar_configs_.push_back(l);
+
                 } catch (boost::bad_lexical_cast) {
                     // Parsing whitespace and possibily malformed XML.
+                    cout << "Parse Error: Check lidar_config's in AirSimSensor.xml" << endl;
                 }
             }
         }
@@ -197,13 +307,38 @@ void AirSimSensor::parse_imu_configs(std::map<std::string, std::string> &params)
             std::vector<std::string> tokens_2;
             boost::split(tokens_2, t_1, boost::is_any_of(" ,"));
 
-            if ((tokens_2.size() == 2) && (tokens_2[0] == vehicle_name_)) {
+            if ((tokens_2.size() == 8) && (tokens_2[0] == vehicle_name_)) {
                 try {
                     cout << "[AirSimSensor] Adding IMU sensor '" << tokens_2[1]
                          << "' to Vehicle '" << vehicle_name_ << "'." << endl;
-                    imu_names_.push_back(tokens_2[1]);
+
+                    AirSimImuType i;
+                    i.vehicle_name = vehicle_name_;
+                    i.imu_name = tokens_2[1];
+                    // IMU pose comes in as NED so transform into ENU
+                    Eigen::Translation3f translation_trans_imu(std::stof(tokens_2[2]),
+                                                               std::stof(tokens_2[3]),
+                                                               std::stof(tokens_2[4]));
+
+                    // Convert Roll pitch yaw from degrees to Radians
+                    // Todo: This calculation from NED RPY to ENU RPY is broken, needs to be fixed before more complicated
+                    // Todo: maneuvers are performed in the simulation where data is sent to ROS
+                    float roll = std::stof(tokens_2[5]) * (M_PI / 180);
+                    float pitch = std::stof(tokens_2[6]) * (M_PI / 180);
+                    float yaw = std::stof(tokens_2[7]) * (M_PI / 180);
+                    // Get imu orientation in NED
+                    Eigen::Quaternionf rotation_quat_imu = ma::VectorMath::toQuaternion(pitch, roll, yaw);
+
+                    // Transform imu orientation to ENU
+                    Eigen::Isometry3f pose_vehicle_imu_NED(translation_trans_imu * rotation_quat_imu);
+                    i.pose_vehicle_imu_ENU = get_object_pose_from_NED_to_ENU(pose_vehicle_imu_NED);
+
+                    // Save into vector
+                    imu_configs_.push_back(i);
+
                 } catch (boost::bad_lexical_cast) {
                     // Parsing whitespace and possibily malformed XML.
+                    cout << "Parse Error: Check imu_config's in AirSimSensor.xml" << endl;
                 }
             }
         }
@@ -245,6 +380,7 @@ void AirSimSensor::init(std::map<std::string, std::string> &params) {
         cout << "[AirSimSensor] Image Acquisition Period = " << image_acquisition_period_ << endl;
         // Get camera configurations
         AirSimSensor::parse_camera_configs(params);
+        AirSimSensor::parse_camera_pose(params);
         img_pub_ = advertise("LocalNetwork", "AirSimImages");
         auto img_msg_ = std::make_shared<sc::Message<std::vector<AirSimImageType>>>();
         // Start the image request thread
@@ -340,6 +476,7 @@ void AirSimSensor::request_images() {
             auto im_msg = std::make_shared<sc::Message<std::vector<AirSimImageType>>>();
             // sc::MessagePtr<std::vector<AirSimImageType>> im_msg;
 
+            // loop through responses
             for (ImageResponse response : response_vector) {
                 CameraConfig response_cam_config;
                 for (CameraConfig c : cam_configs_) {
@@ -370,7 +507,6 @@ void AirSimSensor::request_images() {
                     // get uncompressed 32FC1 array bytes
                     a.img = cv::Mat(a.camera_config.height, a.camera_config.width, CV_32FC1);
                     memcpy(a.img.data, response.image_data_float.data(), response.image_data_float.size() * sizeof(float_t));
-
                 } else {
                     // All Other Image types come in as RGB = 3 channel uint8 matrix
                     // However old linux asset environments give 4 channels
@@ -402,7 +538,6 @@ void AirSimSensor::request_images() {
         running_mutex_.lock();
         running = running_;
         running_mutex_.unlock();
-        // std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(data_acquisition_period_*1000)));
         t_end = std::chrono::high_resolution_clock::now();
         double t_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
         t_elapsed = (image_acquisition_period_*1000) - t_elapsed;
@@ -453,27 +588,28 @@ void AirSimSensor::request_lidar() {
         auto lidar_msg = std::make_shared<sc::Message<std::vector<AirSimLidarType>>>();
         bool new_lidar = false;
 
-        for (const std::string& lidar_name : lidar_names_) {
-            AirSimLidarType l;
-            l.vehicle_name = vehicle_name_;
-            l.lidar_name = lidar_name;
-            l.lidar_data = lidar_client->getLidarData(lidar_name, vehicle_name_);
+        for (AirSimLidarType l : lidar_configs_) {
+            AirSimLidarType lidar;
+            lidar.vehicle_name = vehicle_name_;
+            lidar.lidar_name = l.lidar_name;
+            lidar.pose_vehicle_lidar_ENU = l.pose_vehicle_lidar_ENU;
+            lidar.lidar_data = lidar_client->getLidarData(lidar.lidar_name, lidar.vehicle_name);
 
             // Get pose of vehicle
             ma::Pose vehicle_pose = lidar_client->simGetVehiclePose(vehicle_name_);
             Eigen::Translation3f translation_trans_vehicle(vehicle_pose.position);
             Eigen::Quaternionf rotation_quat_vehicle(vehicle_pose.orientation);
             Eigen::Isometry3f tf_world_vehicle_NED(translation_trans_vehicle * rotation_quat_vehicle);
-            l.vehicle_pose_world_NED = tf_world_vehicle_NED;
+            lidar.vehicle_pose_world_NED = tf_world_vehicle_NED;
             // Get pose of LIDAR
-            Eigen::Translation3f translation_trans_lidar(l.lidar_data.pose.position);
-            Eigen::Quaternionf rotation_quat_lidar(l.lidar_data.pose.orientation);
+            Eigen::Translation3f translation_trans_lidar(lidar.lidar_data.pose.position);
+            Eigen::Quaternionf rotation_quat_lidar(lidar.lidar_data.pose.orientation);
             Eigen::Isometry3f tf_world_lidar_NED(translation_trans_lidar * rotation_quat_lidar);
-            l.lidar_pose_world_NED = tf_world_lidar_NED;
+            lidar.lidar_pose_world_NED = tf_world_lidar_NED;
 
-            if (l.lidar_data.point_cloud.size() > 3) {
+            if (lidar.lidar_data.point_cloud.size() > 3) {
                 new_lidar = true;
-                lidar_msg->data.push_back(l);
+                lidar_msg->data.push_back(lidar);
             }
         }
 
@@ -537,25 +673,26 @@ void AirSimSensor::request_imu() {
         auto imu_msg = std::make_shared<sc::Message<std::vector<AirSimImuType>>>();
 
         bool new_imu = false;
-        for (const auto& imu_name : imu_names_) {
+        for (AirSimImuType i : imu_configs_) {
+            AirSimImuType imu;
+            imu.vehicle_name = vehicle_name_;
+            imu.imu_name = i.imu_name;
+            imu.pose_vehicle_imu_ENU = i.pose_vehicle_imu_ENU;
             // Get IMU Data
-            AirSimImuType i;
-            i.vehicle_name = vehicle_name_;
-            i.imu_name = imu_name;
-            i.imu_data = imu_client->getImuData(imu_name, vehicle_name_);
+            imu.imu_data = imu_client->getImuData(imu.imu_name, imu.vehicle_name);
             // Get pose of vehicle
             ma::Pose vehicle_pose = imu_client->simGetVehiclePose(vehicle_name_);
             Eigen::Translation3f translation_trans_vehicle(vehicle_pose.position);
             Eigen::Quaternionf rotation_quat_vehicle(vehicle_pose.orientation);
             Eigen::Isometry3f tf_world_vehicle_NED(translation_trans_vehicle * rotation_quat_vehicle);
-            i.vehicle_pose_world_NED = tf_world_vehicle_NED;
+            imu.vehicle_pose_world_NED = tf_world_vehicle_NED;
             // Get pose of IMU
             // AirLib API does not give IMU position so use position for center of vehicle
             Eigen::Translation3f translation_trans_imu(vehicle_pose.position);
-            Eigen::Quaternionf rotation_quat_imu(i.imu_data.orientation);
+            Eigen::Quaternionf rotation_quat_imu(imu.imu_data.orientation);
             Eigen::Isometry3f tf_world_imu_NED(translation_trans_imu * rotation_quat_imu);
-            i.imu_pose_world_NED = tf_world_imu_NED;
-            imu_msg->data.push_back(i);
+            imu.imu_pose_world_NED = tf_world_imu_NED;
+            imu_msg->data.push_back(imu);
             new_imu = true;
         }
 
@@ -642,8 +779,6 @@ bool AirSimSensor::step() {
 
     // Get the camera images from the other thread
     if (get_image_data_) {
-        // sc::MessagePtr<std::vector<AirSimImageType>> im_msg_step;
-        // auto im_msg_step = std::make_shared<sc::Message<std::vector<AirSimImageType>>>(); // NOLINT
 
         new_image_mutex_.lock();
         bool new_image = new_image_;
@@ -651,9 +786,7 @@ bool AirSimSensor::step() {
         new_image_mutex_.unlock();
 
         img_msg_mutex_.lock();
-        // im_msg_step = img_msg_;
         std::shared_ptr<sc::Message<std::vector<AirSimImageType>>> im_msg_step = img_msg_;
-        // sc::MessagePtr<std::vector<AirSimImageType>> im_msg_step = img_msg_;
         img_msg_mutex_.unlock();
 
         // If image is new, publish
@@ -666,8 +799,6 @@ bool AirSimSensor::step() {
     }
 
     if (get_lidar_data_) {
-        // sc::MessagePtr<AirSimLidarType> lidar_msg;
-        // auto lidar_msg_step = std::make_shared<sc::Message<std::vector<AirSimLidarType>>>(); // NOLINT
 
         new_lidar_mutex_.lock();
         bool new_lidar = new_lidar_;
@@ -676,7 +807,6 @@ bool AirSimSensor::step() {
 
         lidar_msg_mutex_.lock();
         std::shared_ptr<sc::Message<std::vector<AirSimLidarType>>> lidar_msg_step = lidar_msg_;
-        // lidar_msg_step = lidar_msg_; // NOLINT
         lidar_msg_mutex_.unlock();
 
         // If lidar is new, publish
@@ -686,7 +816,6 @@ bool AirSimSensor::step() {
     }
 
     if (get_imu_data_) {
-        // auto imu_msg_step = std::make_shared<sc::Message<std::vector<AirSimImuType>>>(); // NOLINT
 
         new_imu_mutex_.lock();
         bool new_imu = new_imu_;
@@ -695,10 +824,9 @@ bool AirSimSensor::step() {
 
         imu_msg_mutex_.lock();
         std::shared_ptr<sc::Message<std::vector<AirSimImuType>>> imu_msg_step = imu_msg_;
-        // imu_msg_step = imu_msg_;  // NOLINT
         imu_msg_mutex_.unlock();
 
-        // If lidar is new, publish
+        // If imu is new, publish
         if (new_imu) {
             imu_pub_->publish(imu_msg_step);
         }

@@ -78,6 +78,8 @@ class CameraConfig {
         int width = 256;  // 512
         int fov = 60;
         bool pixels_as_float = false;
+        // Camera pose in relation to center of vehicle body
+        Eigen::Isometry3f pose_vehicle_camera_ENU;
 
         friend std::ostream& operator<<(std::ostream& os,
                                         const CameraConfig& c) {
@@ -111,21 +113,23 @@ class AirSimLidarType {
     std::string lidar_name;
     Eigen::Isometry3f vehicle_pose_world_NED;
     Eigen::Isometry3f lidar_pose_world_NED;
+    Eigen::Isometry3f pose_vehicle_lidar_ENU;
 };
 
 class AirSimImuType {
  public:
     msr::airlib::ImuBase::Output imu_data;
-    int frame_num = 0;
     std::string vehicle_name;
     std::string imu_name;
     Eigen::Isometry3f vehicle_pose_world_NED;
     Eigen::Isometry3f imu_pose_world_NED;
+    Eigen::Isometry3f pose_vehicle_imu_ENU;
 };
 
 class AirSimSensor : public scrimmage::Sensor {
  public:
     AirSimSensor();
+    Eigen::Isometry3f get_object_pose_from_NED_to_ENU(Eigen::Isometry3f object_pose_NED);
     void init(std::map<std::string, std::string> &params) override;
     bool step() override;
     void close(double t) override;
@@ -138,7 +142,9 @@ class AirSimSensor : public scrimmage::Sensor {
 
     // Images
     void parse_camera_configs(std::map<std::string, std::string> &params);
+    void parse_camera_pose(std::map<std::string, std::string> &params);
     std::list<CameraConfig> cam_configs_;
+    // std::vector<AirSimImageType> camera_configs_;
     std::thread request_images_thread_;
     void request_images();
     PublisherPtr img_pub_;
@@ -150,7 +156,7 @@ class AirSimSensor : public scrimmage::Sensor {
 
     // LIDAR
     void parse_lidar_configs(std::map<std::string, std::string> &params);
-    std::vector<std::string> lidar_names_;
+    std::list<AirSimLidarType> lidar_configs_;
     std::thread request_lidar_thread_;
     void request_lidar();
     PublisherPtr lidar_pub_;
@@ -162,7 +168,7 @@ class AirSimSensor : public scrimmage::Sensor {
 
     // IMU
     void parse_imu_configs(std::map<std::string, std::string> &params);
-    std::vector<std::string> imu_names_;
+    std::list<AirSimImuType> imu_configs_;
     std::thread request_imu_thread_;
     void request_imu();
     PublisherPtr imu_pub_;

@@ -98,8 +98,8 @@
     <!-- These plugins publish useful SCRIMMAGE data to ROS -->
     <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
     <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
-<!--    <sensor vehicle_name="robot1">ROSAltimeter</sensor>-->
-<!--    <sensor vehicle_name="robot1">ROSCompass</sensor>-->
+    <sensor vehicle_name="robot1">ROSAltimeter</sensor>
+    <sensor vehicle_name="robot1">ROSCompass</sensor>
 <!--    <sensor vehicle_name="robot1">ROSIMUSensor</sensor>-->
 
 
@@ -115,13 +115,13 @@
 
     <!-- Set ros_python to "true" if using ROS's python interface, "false" uses Image Transports ROS msg for images.-->
     <!-- Set ros_cartographer to "true" if using ROS Cartographer with Scrimmage/AirSim-->
-<!--    <autonomy vehicle_name="robot1"-->
-<!--              show_camera_images="false"-->
-<!--              pub_image_data="true"-->
-<!--              pub_lidar_data="true"-->
-<!--              pub_imu_data="true"-->
-<!--              ros_python="false"-->
-<!--              ros_cartographer="false">ROSAirSim</autonomy>-->
+    <autonomy vehicle_name="robot1"
+              show_camera_images="false"
+              pub_image_data="true"
+              pub_lidar_data="true"
+              pub_imu_data="true"
+              ros_python="false"
+              ros_cartographer="false">ROSAirSim</autonomy>
 
 
     <!-- Straight Plugin -->
@@ -187,8 +187,8 @@
     <!-- These plugins publish useful SCRIMMAGE data to ROS, to use you must build scrimmage with -DBUILD_ROS_PLUGINS=ON-->
     <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
     <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
-<!--    <sensor vehicle_name="robot2">ROSAltimeter</sensor>-->
-<!--    <sensor vehicle_name="robot2">ROSCompass</sensor>-->
+    <sensor vehicle_name="robot2">ROSAltimeter</sensor>
+    <sensor vehicle_name="robot2">ROSCompass</sensor>
 <!--    <sensor vehicle_name="robot2">ROSIMUSensor</sensor>-->
 
 
@@ -204,13 +204,13 @@
 
     <!-- Set ros_python to "true" if using ROS's python interface, "false" uses Image Transports ROS msg for images.-->
     <!-- Set ros_cartographer to "true" if using ROS Cartographer with Scrimmage/AirSim-->
-<!--    <autonomy vehicle_name="robot2"-->
-<!--              show_camera_images="false"-->
-<!--              pub_image_data="true"-->
-<!--              pub_lidar_data="true"-->
-<!--              pub_imu_data="true"-->
-<!--              ros_python="false"-->
-<!--              ros_cartographer="false">ROSAirSim</autonomy>-->
+    <autonomy vehicle_name="robot2"
+              show_camera_images="false"
+              pub_image_data="true"
+              pub_lidar_data="true"
+              pub_imu_data="true"
+              ros_python="false"
+              ros_cartographer="false">ROSAirSim</autonomy>
 
 
     <!-- Straight Plugin -->

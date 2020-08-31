@@ -178,7 +178,7 @@ Ubuntu 18.04 Recommended
 
 #. **Open the Blocks Environment in Unreal Engine**
 
-    Go the Linux or Windows machine that you setup Unreal/AirSim. Some of the following directions were taken from
+    Go to the Linux or Windows machine that you setup Unreal/AirSim. Some of the following directions were taken from
     AirSim's unreal_blocks.md documentation, but they are placed here for completeness.
 
     **Open Blocks in Linux Unreal Engine**
@@ -306,7 +306,7 @@ Vehicle Settings
         file. You can add as many Entities/quadcopters as you need, however if you are saving images from each quadcopter you
         will eventually see a lag in the simulation as you add more and more quadcopters. You can add an additional quadcopter
         by adding a new ``entity`` tag with count=1 in the quad-airsim-ex1.xml mission file and adding a new vehicle to the
-        Documents/AirSim/settings.json file on the machine running Unreal/AirSim. please use unique, lowercase names for naming each
+        Documents/AirSim/settings.json file on the machine running Unreal/AirSim. Please use unique, lowercase names for naming each
         vehicle.
 
         Each new Entity you add must contain a "<sensor>AirSimSensor</sensor>" tag (and if you are using ROS an

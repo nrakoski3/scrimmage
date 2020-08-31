@@ -16,16 +16,22 @@
   <airsim_timeout_s>60</airsim_timeout_s>
 
 
+  <!-- Camera sensor configurations **MUST** match the settings on the AirSim settings.json file or you will receive
+       an RPC error.
 
-  <!--
-      [VehicleName CameraName=front_center ImageTypeName=Scene Width=256 Height=144 FOV=60]
+      [VehicleName=robot1 CameraName=front_center ImageTypeName=Scene Width=256 Height=144 FOV=60]
 
-      AirSim Camera Name: User chosen name also set in settings.json file under "Cameras" for each vehicle.
-                          Must be lowercase, no spaces.
+      AirSim Vehicle Name: User chosen vehicle name set in settings.json file under Vehicles
 
-      AirSim ImageTypeName = ImageTypeNumber:
-      Scene, DepthPlanner, DepthPerspective, DepthVis, DisparityNormalized,
-      Segmentation, SurfaceNormals, Infrared
+      AirSim Camera Name: User chosen name for a camera on a vehicle. Set in settings.json file under "Cameras" for each vehicle.
+                          Names must be unique, lowercase, and have no spaces. Pose of camera must also be set below.
+
+      AirSim ImageTypeName: These are different camera "lenses" that make a camera, specified by the camera name,
+                            return images of a certain image type from the simulation. A single camera can return images
+                            in multiple image types.
+                            ImageType Options:
+                            Scene, DepthPlanner, DepthPerspective, DepthVis, DisparityNormalized, Segmentation,
+                            SurfaceNormals, Infrared
 
       Image Pixels = Width, Height
 
@@ -43,25 +49,48 @@
     [robot2 front_center Infrared 256 144 90]
   </camera_config>
 
+  <!-- Pose of cameras on vehicle in relation to center of vehicle body. Each camera has its own camera name and pose.
+        The pose must match what is specified in the settings.json file for the CameraName set under "Cameras". The pose
+        in the settings.json file is in NED frame, place the camera pose in NED here as well. Do not use repeat camera
+        names on a vehicle. All names must be lowercase and have no spaces.
+        X, Y, Z = meters
+        Roll, Pitch, Yaw = degrees
+
+   [VehicleName=robot1 CameraName=front_center X=0.0 Y=0.0 Z=0.0 Roll=0.0 Pitch=0.0 Yaw=0.0]
+   -->
+  <camera_pose_NED>
+    [robot1 front_center 0.5 0.0 0.0 0.0 0.0 0.0]
+
+    [robot2 front_center 0.5 0.0 0.0 0.0 0.0 0.0]
+  </camera_pose_NED>
+
   <!--
-      [VehicleName LidarName]
-      Define relationship between multiple robots and lidars, need 1 for each lidar in simulation
+      [VehicleName LidarName X=0.0 Y=0.0 Z=0.0 Roll=0.0 Pitch=0.0 Yaw=0.0]
+      Define relationship between multiple robots and LIDARs, need 1 for each LIDAR in simulation.
+
+      LIDAR pose must match what is set in settngs.json file (NED), specify in NED here as well.
+      X, Y, Z = meters
+      Roll, Pitch, Yaw = degrees
   -->
 
   <lidar_config>
-    [robot1 lidar1]
+    [robot1 lidar1 0.0 0.5 0.0 0.0 0.0 15.0]
 
-    [robot2 lidar1]
+    [robot2 lidar1 0.0 0.5 0.0 0.0 0.0 15.0]
   </lidar_config>
 
   <!--
-      [VehicleName ImuName]
+      [VehicleName ImuName X=0.0 Y=0.0 Z=0.0 Roll=0.0 Pitch=0.0 Yaw=0.0]
       Define relationship between multiple robots and imus, need one for each imu in simulation
+
+      IMU pose must match what is set in settngs.json file (NED), specify in NED here as well.
+      X, Y, Z = meters
+      Roll, Pitch, Yaw = degrees
   -->
   <imu_config>
-    [robot1 imu1]
+    [robot1 imu1 0.0 0.0 0.0 0.0 0.0 0.0]
 
-    [robot2 imu1]
+    [robot2 imu1 0.0 0.0 0.0 0.0 0.0 0.0]
   </imu_config>
 
 

@@ -57,54 +57,36 @@ namespace autonomy {
 
 ROSAirSim::ROSAirSim() {}
 
-Eigen::Isometry3f ROSAirSim::get_vehicle_world_pose_from_NED_to_ENU(Eigen::Isometry3f vehicle_pose_world_NED) {
+Eigen::Isometry3f ROSAirSim::get_object_pose_from_NED_to_ENU(Eigen::Isometry3f object_pose_NED) {
     //Get Vehicle Pose from NED to ENU
-    Eigen::Matrix<float, 3, 1> vehicle_position_ENU;
-    vehicle_position_ENU.x() = vehicle_pose_world_NED.translation().y();
-    vehicle_position_ENU.y() = vehicle_pose_world_NED.translation().x();
-    vehicle_position_ENU.z() = -1 * vehicle_pose_world_NED.translation().z();
+    Eigen::Matrix<float, 3, 1> object_position_ENU;
+    object_position_ENU.x() = object_pose_NED.translation().y();
+    object_position_ENU.y() = object_pose_NED.translation().x();
+    object_position_ENU.z() = -1 * object_pose_NED.translation().z();
     // Convert the orientation to ENU
-    // Eigen::Quaternion<float> NED_quat_vehicle = vehicle_pose_world_NED.rotation();
-    Eigen::Quaternionf NED_quat_vehicle(vehicle_pose_world_NED.rotation());
+    Eigen::Quaternionf NED_quat_object(object_pose_NED.rotation());
 
     // Rotate, order matters
     double xTo = -180 * (M_PI / 180); // -PI rotation about X
     double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
-    Eigen::Quaternion<float> vehicle_orientation_ENU;
-    vehicle_orientation_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat_vehicle; // -PI rotation about X
-    vehicle_orientation_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * vehicle_orientation_ENU; // PI/2 rotation about Z (Up)
+    Eigen::Quaternion<float> object_orientation_ENU;
+    object_orientation_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat_object; // -PI rotation about X
+    object_orientation_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * object_orientation_ENU; // PI/2 rotation about Z (Up)
     // Bring vehicle pose in relation to ENU, World into Eigen
-    Eigen::Translation3f translation_trans_vehicle(vehicle_position_ENU);
-    Eigen::Quaternionf rotation_quat_vehicle(vehicle_orientation_ENU);
-    Eigen::Isometry3f tf_world_vehicle_ENU(translation_trans_vehicle * rotation_quat_vehicle);
-    return tf_world_vehicle_ENU;
+    Eigen::Translation3f translation_trans_object(object_position_ENU);
+    Eigen::Quaternionf rotation_quat_object(object_orientation_ENU);
+    Eigen::Isometry3f tf_object_ENU(translation_trans_object * rotation_quat_object);
+    return tf_object_ENU;
 }
 
 Eigen::Isometry3f ROSAirSim::get_sensor_pose_from_worldNED_to_vehicleENU(Eigen::Isometry3f vehicle_pose_world_NED,
                                                                          Eigen::Isometry3f sensor_pose_world_NED) {
     //Get Vehicle Pose from NED to ENU
-    Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(vehicle_pose_world_NED);
+    Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(vehicle_pose_world_NED);
 
     // AirSim gives pose of camera in relation to the world frame
     // Pose in response is in NED, but scrimmage is in ENU so convert
-    // Convert position to ENU: Switch X and Y and negate Z
-    Eigen::Matrix<float, 3, 1> sensor_position_world_ENU;
-    sensor_position_world_ENU.x() = sensor_pose_world_NED.translation().y();
-    sensor_position_world_ENU.y() = sensor_pose_world_NED.translation().x();
-    sensor_position_world_ENU.z() = -1 * sensor_pose_world_NED.translation().z();
-    // Convert the orientation to ENU
-    // Eigen::Quaternion<float> NED_quat = sensor_pose_world_NED.rotation();
-    Eigen::Quaternionf NED_quat(sensor_pose_world_NED.rotation());
-    // Rotate, order matters
-    double xTo = -180 * (M_PI / 180); // -PI rotation about X
-    double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
-    Eigen::Quaternion<float> sensor_orientation_world_ENU;
-    sensor_orientation_world_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat; // -PI rotation about X
-    sensor_orientation_world_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * sensor_orientation_world_ENU; // PI/2 rotation about Z (Up)
-    // Place pose of camera in ENU, world frame into Eigen
-    Eigen::Translation3f translation_trans_sensor(sensor_position_world_ENU);
-    Eigen::Quaternionf rotation_quat_sensor(sensor_orientation_world_ENU);
-    Eigen::Isometry3f tf_world_sensor_ENU(translation_trans_sensor * rotation_quat_sensor);
+    Eigen::Isometry3f tf_world_sensor_ENU = get_object_pose_from_NED_to_ENU(sensor_pose_world_NED);
 
     // Get pose of lidar in ENU, vehicle frame using Eigen
     Eigen::Isometry3f tf_vehicle_sensor_ENU(tf_world_vehicle_ENU.inverse() * tf_world_sensor_ENU);
@@ -281,7 +263,7 @@ void ROSAirSim::init(std::map<std::string, std::string> &params) {
                     tf_msg_vec_.clear();
 
                     //Get Vehicle Pose from NED to ENU
-                    Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(a.vehicle_pose_world_NED);
+                    Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(a.vehicle_pose_world_NED);
                     // Get pose of lidar in ENU, vehicle frame using Eigen
                     Eigen::Isometry3f tf_vehicle_camera_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(a.vehicle_pose_world_NED,
                                                                                                           a.camera_pose_world_NED);
@@ -416,7 +398,7 @@ void ROSAirSim::init(std::map<std::string, std::string> &params) {
                 tf_msg_vec_.clear();
 
                 //Get Vehicle Pose from NED to ENU
-                Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(l.vehicle_pose_world_NED);
+                Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(l.vehicle_pose_world_NED);
                 // Get pose of lidar in ENU, vehicle frame using Eigen
                 Eigen::Isometry3f tf_vehicle_lidar_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(l.vehicle_pose_world_NED,
                                                                                                      l.lidar_pose_world_NED);
@@ -532,7 +514,7 @@ void ROSAirSim::init(std::map<std::string, std::string> &params) {
                 tf_msg_vec_.clear();
 
                 //Get Vehicle Pose from NED to ENU
-                Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(i.vehicle_pose_world_NED);
+                Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(i.vehicle_pose_world_NED);
                 // Get pose of lidar in ENU, vehicle frame using Eigen
                 Eigen::Isometry3f tf_vehicle_imu_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(i.vehicle_pose_world_NED,
                                                                                                    i.imu_pose_world_NED);
@@ -657,10 +639,17 @@ bool ROSAirSim::step_autonomy(double t, double dt) {
 
             //// for each imu publish a transform
             //Get Vehicle Pose from NED to ENU
-            Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(i.vehicle_pose_world_NED);
+            Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(i.vehicle_pose_world_NED);
             // Get pose of imu in ENU, vehicle frame using Eigen
             Eigen::Isometry3f tf_vehicle_imu_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(i.vehicle_pose_world_NED,
                                                                                                i.imu_pose_world_NED);
+
+            // If the imu position calculated does not match what the user reported
+            // This is caused by RPC request architecture of AirSim
+            // vehicle pose and imu pose are pulled through two different requests so they don't always match
+            if (i.pose_vehicle_imu_ENU.translation() != tf_vehicle_imu_ENU.translation()){
+                tf_vehicle_imu_ENU.translation() = i.pose_vehicle_imu_ENU.translation();
+            }
 
             //cout << "If not publishing lidar or image data, publish world frame from imu" << endl;
             //////////////////////////////////////////////////////////////////////
@@ -720,7 +709,6 @@ bool ROSAirSim::step_autonomy(double t, double dt) {
         } // end imus in message for loop
     }
 
-
     //// Update LIDAR PointCloud2 ROS message
     //////////////////////////////////////////////////////////////////////
     lidar_topic_published_mutex_.lock();
@@ -777,10 +765,32 @@ bool ROSAirSim::step_autonomy(double t, double dt) {
 
             //// publish a transform for each lidar
             //Get Vehicle Pose from NED to ENU
-            Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(l.vehicle_pose_world_NED);
+            Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(l.vehicle_pose_world_NED);
             // Get pose of lidar in ENU, vehicle frame using Eigen
             Eigen::Isometry3f tf_vehicle_lidar_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(l.vehicle_pose_world_NED,
                                                                                                  l.lidar_pose_world_NED);
+
+            Eigen::Isometry3f tf_vehicle_sensor_same_lidar_NED(l.vehicle_pose_world_NED.inverse() * l.lidar_pose_world_NED);
+
+//            cout << " " << endl;
+//            cout << " " << endl;
+//            cout << "lid same tran: " << tf_vehicle_sensor_same_lidar_NED.translation() << endl;
+//            cout << "lid sensor tran: " << tf_vehicle_lidar_ENU.translation() << endl;
+//            cout << "lid parsed tran: " << l.pose_vehicle_lidar_ENU.translation() << endl;
+//            cout << " " << endl;
+//            cout << "lid sensor same: " << tf_vehicle_sensor_NED.rotation() << endl;
+//            cout << "lid sensor quat: " << tf_vehicle_lidar_ENU.rotation() << endl;
+//            cout << "lid parsed quat: " << l.pose_vehicle_lidar_ENU.rotation() << endl;
+//            cout << " " << endl;
+//            cout << " " << endl;
+
+            // If the lidar position calculated does not match what the user reported
+            // This is caused by RPC request architecture of AirSim
+            // vehicle pose and LIDAR pose are pulled through two different requests so they don't always match
+            if (l.pose_vehicle_lidar_ENU.translation() != tf_vehicle_lidar_ENU.translation()){
+                tf_vehicle_lidar_ENU.translation() = l.pose_vehicle_lidar_ENU.translation();
+            }
+
 
             // If not publishing imu, publish world frame from lidar -- 2nd least receiving/ processing time.
             if (!pub_imu_data_) {
@@ -933,11 +943,30 @@ bool ROSAirSim::step_autonomy(double t, double dt) {
                     std::string cam_topic_name = ros_namespace_ + "/camera/" + camera_name;
 
                     //Get Vehicle Pose from NED to ENU
-                    Eigen::Isometry3f tf_world_vehicle_ENU = get_vehicle_world_pose_from_NED_to_ENU(a.vehicle_pose_world_NED);
+                    Eigen::Isometry3f tf_world_vehicle_ENU = get_object_pose_from_NED_to_ENU(a.vehicle_pose_world_NED);
                     // Get pose of camera in ENU, vehicle frame using Eigen
                     Eigen::Isometry3f tf_vehicle_camera_ENU = get_sensor_pose_from_worldNED_to_vehicleENU(a.vehicle_pose_world_NED,
                                                                                                           a.camera_pose_world_NED);
                     // cout << "publishing transform for: " << cam_name << endl;
+
+                    Eigen::Isometry3f tf_vehicle_sensor_same_camera_NED(a.vehicle_pose_world_NED.inverse() * a.camera_pose_world_NED);
+                    cout << " " << endl;
+                    cout << " " << endl;
+                    cout << "cam same tran: " << tf_vehicle_sensor_same_camera_NED.translation() << endl;
+                    cout << "cam sensor tran: " << tf_vehicle_camera_ENU.translation() << endl;
+                    cout << "cam parsed tran: " << a.camera_config.pose_vehicle_camera_ENU.translation() << endl;
+                    cout << " " << endl;
+                    cout << "cam sensor quat: " << tf_vehicle_camera_ENU.rotation() << endl;
+                    cout << "cam parsed quat: " << a.camera_config.pose_vehicle_camera_ENU.rotation() << endl;
+                    cout << " " << endl;
+                    cout << " " << endl;
+
+                    // If the camera position calculated does not match what the user reported
+                    // This is caused by RPC request architecture of AirSim
+                    // vehicle pose and camera pose are pulled through two different requests so they don't always match
+                    if (a.camera_config.pose_vehicle_camera_ENU.translation() != tf_vehicle_camera_ENU.translation()){
+                        tf_vehicle_camera_ENU.translation() = a.camera_config.pose_vehicle_camera_ENU.translation();
+                    }
 
                     // If not publishing lidar or imu data, publish world frame from images
                     if (!pub_imu_data_ && !pub_lidar_data_) {
