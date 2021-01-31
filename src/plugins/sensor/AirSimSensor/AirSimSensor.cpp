@@ -90,18 +90,24 @@ Eigen::Isometry3f AirSimSensor::get_object_pose_from_NED_to_ENU(Eigen::Isometry3
     object_position_ENU.x() = object_pose_NED.translation().y();
     object_position_ENU.y() = object_pose_NED.translation().x();
     object_position_ENU.z() = -1 * object_pose_NED.translation().z();
-    // Convert the orientation to ENU
-    Eigen::Quaternionf NED_quat_object(object_pose_NED.rotation());
+//    // Convert the orientation to ENU
+//    Eigen::Quaternionf NED_quat_object(object_pose_NED.rotation());
+//
+//    // Rotate, order matters
+//    double xTo = -180 * (M_PI / 180); // -PI rotation about X
+//    double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
+//    Eigen::Quaternion<float> object_orientation_ENU;
+//    object_orientation_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat_object; // -PI rotation about X
+//    object_orientation_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * object_orientation_ENU; // PI/2 rotation about Z (Up)
+//    // Bring vehicle pose in relation to ENU, World into Eigen
+//    Eigen::Translation3f translation_trans_object(object_position_ENU);
+//    Eigen::Quaternionf rotation_quat_object(object_orientation_ENU);
 
-    // Rotate, order matters
-    double xTo = -180 * (M_PI / 180); // -PI rotation about X
-    double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
-    Eigen::Quaternion<float> object_orientation_ENU;
-    object_orientation_ENU = Eigen::AngleAxis<float>(xTo, Eigen::Vector3f::UnitX()) * NED_quat_object; // -PI rotation about X
-    object_orientation_ENU = Eigen::AngleAxis<float>(zTo, Eigen::Vector3f::UnitZ()) * object_orientation_ENU; // PI/2 rotation about Z (Up)
-    // Bring vehicle pose in relation to ENU, World into Eigen
+//    double xTo = -180 * (M_PI / 180); // -PI rotation about X
+//    double zTo = 90 * (M_PI / 180); // PI/2 rotation about Z (Up)
+
     Eigen::Translation3f translation_trans_object(object_position_ENU);
-    Eigen::Quaternionf rotation_quat_object(object_orientation_ENU);
+    Eigen::Quaternionf rotation_quat_object(0.0, sqrt(2)/2, sqrt(2)/2, 0.0);
     Eigen::Isometry3f tf_object_ENU(translation_trans_object * rotation_quat_object);
     return tf_object_ENU;
 }
@@ -219,18 +225,27 @@ void AirSimSensor::parse_camera_pose(std::map<std::string, std::string> &params)
                     // Transform Camera orientation to ENU
                     Eigen::Isometry3f pose_vehicle_camera_NED(translation_trans_camera * rotation_quat_camera);
                     Eigen::Isometry3f pose_vehicle_camera_ENU = get_object_pose_from_NED_to_ENU(pose_vehicle_camera_NED);
+                    Eigen::Quaternionf pose_vehicle_camera_ENU_rotation(pose_vehicle_camera_ENU.rotation());
 
                     cout << "camera " << camera_name << " pos: x " << pose_vehicle_camera_ENU.translation().x() <<
                                                         ", y " << pose_vehicle_camera_ENU.translation().y() <<
-                                                        ", z " << pose_vehicle_camera_ENU.translation().z() << endl;
+                                                        ", z " << pose_vehicle_camera_ENU.translation().z() <<
+                                                         " rot: w " << pose_vehicle_camera_ENU_rotation.w() <<
+                                                        ", x " << pose_vehicle_camera_ENU_rotation.x() <<
+                                                        ", y " << pose_vehicle_camera_ENU_rotation.y() <<
+                                                        ", z " << pose_vehicle_camera_ENU_rotation.z() << endl;
 
                     for (CameraConfig c : cam_configs_) {
                         if (c.cam_name == camera_name) {
                             c.pose_vehicle_camera_ENU = pose_vehicle_camera_ENU;
 
-                            cout << "camera " << camera_name << " pos: x " << c.pose_vehicle_camera_ENU.translation().x() <<
-                                 ", y " << c.pose_vehicle_camera_ENU.translation().y() <<
-                                 ", z " << c.pose_vehicle_camera_ENU.translation().z() << endl;
+                            cout << "camera " << camera_name << " pos: x " << pose_vehicle_camera_ENU.translation().x() <<
+                                                        ", y " << pose_vehicle_camera_ENU.translation().y() <<
+                                                        ", z " << pose_vehicle_camera_ENU.translation().z() <<
+                                                         " rot: w " << pose_vehicle_camera_ENU_rotation.w() <<
+                                                        ", x " << pose_vehicle_camera_ENU_rotation.x() <<
+                                                        ", y " << pose_vehicle_camera_ENU_rotation.y() <<
+                                                        ", z " << pose_vehicle_camera_ENU_rotation.z() << endl;
                         }
                     }
 

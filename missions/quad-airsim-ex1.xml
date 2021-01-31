@@ -5,9 +5,9 @@
 
   <run start="0.0" end="100" dt="0.01"
        time_warp="1"
-       enable_gui="true"
+       enable_gui="false"
        network_gui="false"
-       start_paused="true"/>
+       start_paused="false"/>
 
   <display_progress>false</display_progress>
 
@@ -64,9 +64,12 @@
     <!-- Here these are in ENU, but in the settings.json you must state them in NED (ENU -> Ned = switch x & y, negate z) -->
     <!-- Leave Z = 0.0 in the settings.json, only change Z here.-->
     <!-- Recommended Z (below) for Assets: LandscapeMountains=100, Neighborhood=10, Africa=30, City=30, ZhangJiaJie=10 -->
+<!--    <x>0.0</x>-->
+<!--    <y>0.0</y>-->
+<!--    <z>14.0</z>-->
     <x>0.0</x>
     <y>0.0</y>
-    <z>14.0</z>
+    <z>20.0</z>
     <heading>0</heading>
 
 
@@ -88,19 +91,10 @@
             save_airsim_data="true"
             get_image_data="true"
             get_lidar_data="true"
-            get_imu_data="true"
+            get_imu_data="false"
             image_acquisition_period="0.33"
             lidar_acquisition_period="0.1"
             imu_acquisition_period="0.1">AirSimSensor</sensor>
-
-
-    <!-- SCRIMMAGE ROS Data Plugins-->
-    <!-- These plugins publish useful SCRIMMAGE data to ROS -->
-    <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
-    <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
-    <sensor vehicle_name="robot1">ROSAltimeter</sensor>
-    <sensor vehicle_name="robot1">ROSCompass</sensor>
-<!--    <sensor vehicle_name="robot1">ROSIMUSensor</sensor>-->
 
 
     <!-- ROSAirSim Plugin -->
@@ -124,10 +118,18 @@
               ros_cartographer="false">ROSAirSim</autonomy>
 
 
+    <!-- SCRIMMAGE ROS Data Plugins-->
+    <!-- These plugins publish useful SCRIMMAGE data to ROS -->
+    <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
+    <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
+    <sensor vehicle_name="robot1">ROSAltimeter</sensor>
+    <sensor vehicle_name="robot1">ROSCompass</sensor>
+    <sensor vehicle_name="robot1">ROSIMUSensor</sensor>
+
     <!-- Straight Plugin -->
     <!-- show_camera_images shows AirSim images in windows during simulation. -->
     <!-- Make sure "get_image_data" is set "true" in AirSimSensor above before use. -->
-    <autonomy show_camera_images="true">Straight</autonomy>
+    <autonomy show_camera_images="false">Straight</autonomy>
 
     <motion_model motion_model_sets_yaw="false"
                   sim_copter_orientation="true"
@@ -152,9 +154,12 @@
     <!-- Here these are in ENU, but in the settings.json you must state them in NED (ENU -> Ned = switch x & y, negate z) -->
     <!-- Leave Z = 0.0 in the settings.json, only change Z here.-->
     <!-- Recommended Z (below) for Assets: LandscapeMountains=100, Neighborhood=10, Africa=30, City=30, ZhangJiaJie=10 -->
+<!--    <x>4.0</x>-->
+<!--    <y>0.0</y>-->
+<!--    <z>10.0</z>-->
     <x>4.0</x>
     <y>0.0</y>
-    <z>10.0</z>
+    <z>20.0</z>
 
     <heading>0</heading>
 
@@ -177,19 +182,10 @@
             save_airsim_data="true"
             get_image_data="true"
             get_lidar_data="true"
-            get_imu_data="true"
+            get_imu_data="false"
             image_acquisition_period="0.33"
             lidar_acquisition_period="0.1"
             imu_acquisition_period="0.1">AirSimSensor</sensor>
-
-
-    <!-- SCRIMMAGE ROS Data Plugins -->
-    <!-- These plugins publish useful SCRIMMAGE data to ROS, to use you must build scrimmage with -DBUILD_ROS_PLUGINS=ON-->
-    <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
-    <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
-    <sensor vehicle_name="robot2">ROSAltimeter</sensor>
-    <sensor vehicle_name="robot2">ROSCompass</sensor>
-<!--    <sensor vehicle_name="robot2">ROSIMUSensor</sensor>-->
 
 
     <!-- ROSAirSim Plugin -->
@@ -213,10 +209,19 @@
               ros_cartographer="false">ROSAirSim</autonomy>
 
 
+    <!-- SCRIMMAGE ROS Data Plugins -->
+    <!-- These plugins publish useful SCRIMMAGE data to ROS, to use you must build scrimmage with -DBUILD_ROS_PLUGINS=ON-->
+    <!-- vehicle_name is the name given to the corresponding vehicle in the AirSim settings.json file. -->
+    <!-- These SCRIMMAGE simulated sensors can not support custom location settings on the vehicle body or using multiple of each per vehicle unlike AirSim sensors.-->
+    <sensor vehicle_name="robot2">ROSAltimeter</sensor>
+    <sensor vehicle_name="robot2">ROSCompass</sensor>
+    <sensor vehicle_name="robot2">ROSIMUSensor</sensor>
+
     <!-- Straight Plugin -->
     <!-- show_camera_images shows AirSim images in windows during simulation. -->
     <!-- Make sure "get_image_data" is set "true" in AirSimSensor above before use. -->
-    <autonomy show_camera_images="true">Straight</autonomy>
+    <autonomy show_camera_images="false">Straight</autonomy>
+    <autonomy>Boids</autonomy>
 
     <motion_model motion_model_sets_yaw="false"
                   sim_copter_orientation="true"
